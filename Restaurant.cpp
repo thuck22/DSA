@@ -28,13 +28,34 @@ public:
 
 	Node * head;
 	Node *tail;
+    Node * current;
 	int count;
 	friend class imp_res;
 public:
-	Queue(): head(NULL),tail(NULL),count(0){}
+	Queue(): head(NULL),tail(NULL),current(NULL),count(0){}
 	~Queue() {
 		clear();
 	}
+    void addCir(customer &cus,int num = 0) {
+        count++;
+        if(count == 0) {
+            current = new Node(&cus,NULL,NULL);
+            current->pre = current;
+            current->next = current;
+        }
+        else if(num > 0) {
+            Node  * p = new Node(&cus,current,current->next);
+            current->next->pre = p;
+            current->next = p;
+            current = p;
+        }
+        else {
+            Node * p = new Node (&cus,current->pre,current) ;
+            current->pre->next = p;
+            current->pre = p;
+            current = p;
+        }
+    }
 	void add (customer &cus) {
 		if(count == 0) {
 			head = new Node(&cus,NULL,NULL);
@@ -47,125 +68,127 @@ public:
 			count++;
 		}
 	}
-	customer * remove() {
-		if(count >0) {
-			Node * p = head;
-			head = head->next;
-			head->pre = NULL;
-			count--;
-			customer * cus = p->cus;
-			delete p;
-			return cus;
-		}
-		else throw "Segmentation fail!";
-	}
 	void clear() {
-		while(head) {
-			Node *p = head->next;
-			delete head;
-			head = p;
+		if(head == NULL) {
+			while(current) {
+				Node * p = current->next;
+				delete current;
+				current = p;
+			}
+		}
+		else {
+			while(head) {
+				Node *p = head->next;
+				delete head;
+				head = p;
+			}
 		}
 		count = 0;
 		tail = NULL;
 	}
-	customer *front() {
-		if(head == NULL) throw "Segmentation fail!";
-		else return head->cus;
+    void setCurrent(Node * p) {
+        this->current = p;
+    }
+	customer * remove () {
+		count--;
+		Node * p = head;
+		head = head->next;
+		head->pre = NULL;
+		customer * temp = p->cus;
+		delete p;
+		return temp;
 	}
-	customer *rear() {
-		if(tail == NULL) throw "Segmentation fail!";
-		else return tail->cus;
-	}
-	Node * maxEnergy() {
-		Node *p = head->next;
-		int max = abs(head->cus->energy);
-		Node * s = head;
-		while(p) {
-			if(abs(p->cus->energy) > max) {
-				max = abs(p->cus->energy);
-				s = p;
+	void removeCir(customer * cus) {
+		count--;
+		Node * p = current->next;
+		if(current->cus == cus) {
+			p = current;
+			current->pre->next = current->next;
+			current->next->pre = current->pre;
+			if(p->cus->energy > 0) current = p->next;
+			else current = p->pre;
+			delete cus;
+			delete p;
+		}
+		while(p != current) {
+			if(p->cus == cus) {
+				p->pre->next = p->next;
+				p->next->pre = p->pre;
+				if(p->cus->energy > 0) current = p->next;
+				else current = p->pre;
+				delete cus;
+				delete p;
+				break;
 			}
 			p = p->next;
 		}
-		return s;
 	}
 	Node * ind(int index) {
-		if(index == 0) return head;
-		else if(index > count || index <0) throw "out_of_range"; 
-		else if(index == count-1) return tail;
+		Node *p = head;
+		if(index > count || index < 0) throw "Segmentation fail!";
+		else if(index == 0) {
+			return head;
+		}
 		else {
-			Node *p = head;
-			for(int i = 1; i <= index; i++) {
+			while(index) {
+				index--;
 				p = p->next;
 			}
 			return p;
 		}
 	}
-	int shellSort() {
-		int n = 1; 
-		Node *p = head;
-		while(p != maxEnergy()) {
-			p = p->next;
-			n++;
+	bool prior(Node *p, Node *q) {
+		Node * ptr = head;
+		while(ptr != q) {
+			if(ptr == p) return 1;
+			ptr = ptr->next;
 		}
-		int i = n/2;
+		return 0;
+	}
+	int insSort2(int n, int incr) {
 		int cnt = 0;
-		while(i) {
-			cnt++;
-			for(int j = 0; j < i ; j++) {
-				for(int k = j +i; k < n; k += i) {
-					if(abs(ind(k-i)->cus->energy) < abs(ind(k)->cus->energy) ) {
-						customer * temp = ind(k-i)->cus;
-						ind(k-1)->cus = ind(k)->cus;
-						ind(k)->cus = temp;
-					}
-				}
+		for(int i = incr; i < n; i += incr) {
+			for(int j =i ; j >= incr && prior(ind(j),ind(j-incr)); j -= incr ) {
+				Node *p = ind(j);
+				Node * ptr = ind(j -incr);
+				customer *temp = p->cus;
+				p->cus = ptr->cus;
+				ptr->cus = temp;
+				cnt++;
 			}
-			i /= 2;
-			cnt++;
 		}
 		return cnt;
 	}
-
-	void print() {
-		Node *p = head;
-		while(p) {
-			cout << p->cus->name << ' ' << p->cus->energy << endl;
-			p = p->next;
+	int shellSort(int n) {
+		int cnt = 0;
+		for(int i = n/2; i > 2; i /= 2) {
+			for(int j =0; j < i; j++) {
+				cnt += insSort2(n-j,i);
+			}
+			cnt += insSort2(n,1);
 		}
+		return cnt;
 	}
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class imp_res : public Queue
 {
-	customer * current;
-	int guest;
-    Queue * cir;
-	Queue * q1;
-	Queue * q2;
+    public: 
+        Queue *qtime;
+        Queue * q;
+        Queue * qcho;
 	public:	
-		imp_res(){
-			current = NULL;
-			guest = 0;
-            cir = new Queue();
-			q1 = new Queue() ;
-			q2 = new Queue() ;
-		}
-		bool checkName(string name);
+		imp_res() {
+            qtime = new Queue();
+            q = new Queue();
+            qcho = new Queue();
+        }
+        ~imp_res() {
+            qtime->clear();
+            qcho->clear();
+            q->clear();
+        }
+        bool checkName(string name);
 		void RED(string name, int energy);
 		void BLUE(int num);
 		void PURPLE();
@@ -175,329 +198,252 @@ class imp_res : public Queue
 		void LIGHT(int num);
 };
 
-// impliment class imp_res
+
+//implementation
 bool imp_res::checkName(string name) {
-	customer * p = current;
-	while(p!= current) {
-		if(name.compare(p->name) == 0) return 1;
+    Node * p = q->current->next;
+    if(q->current->cus->name == name) return 1;
+    while(p != q->current) {
+		if(p->cus->name == name) return 1;
+		p = p->next;
 	}
 	return 0;
 }
 
-void imp_res::RED(string name,int energy) {
+void imp_res::RED(string name, int energy) {
 	cout << name << " " << energy << endl;
-	if(energy == 0);
-	else if(guest == 0) {
-		current = new customer (name,energy,NULL,NULL);
-        
-		current->prev = current;
-		current->next = current;
-		guest++;
-		q1->add(*current);
-	}
-	else if(guest >= MAXSIZE/2) {
-        guest++;
-        customer * p = current;
-        customer * n = current->next;
-        customer * s;
-        int res = -1e9;
-        for(int i =0; i < guest; i++) {
-            if((abs(p->energy) - abs(n->energy)) > res) {
-                res = (abs(p->energy) - abs(n->energy));
+	customer *cus = new customer (name, energy, nullptr, nullptr);
+    if(energy == 0) ;
+    else if(checkName(name)) ;
+    else if(q->count == 0) {
+        q->addCir(*cus);
+        qtime->add(*cus);
+    }
+    else if(q->count < MAXSIZE/2 && q->count > 0) {
+        qtime->add(*cus);
+        Node * p = q->current;
+        Node * n = p->next, * s;
+        int max = -1e9;
+        for(int i =0; i < q->count; i++) {
+            if((abs(p->cus->energy) - abs(n->cus->energy)) > max) {
+                max = (abs(p->cus->energy) - abs(n->cus->energy));
                 s = p;
             }
             p = p->next;
             n = p->next;
         }
-        if((s->energy - s->next->energy) < 0) {
-            customer * cus = new customer(name,energy,s->prev,s);
-            s->prev->next = cus;
-            s ->prev = cus;
-            q1->add(*cus);
+        if(s->cus->energy - s->next->cus->energy < 0) {
+            q->setCurrent(s);
+            q->addCir(*cus,-1);
         }
         else {
-            customer * cus = new customer (name,energy,s,s->next);
-            s->next->prev = cus;
-            s->next =cus;
-            q1->add(*cus);
+            q->setCurrent(s);
+            q->addCir(*cus,1);
         }
-	}
-	else if(guest < MAXSIZE) {
-		if(energy >= current->energy) {
-			customer * cus = new customer(name,energy,current->prev,current);
-			current->prev->next = cus;
-			current->prev = cus;
-			current = cus;
-			guest++;
-		}
-		else {
-			customer * cus = new customer(name,energy,current,current->next);
-			current->next ->prev = cus;
-			current->next = cus;
-			current = cus;
-			guest++;
-		}
-		q1->add(*current);
-	}
-	else {
-		if(checkName(name) || q2->count == MAXSIZE) ;
-		else {
-			customer * cus = new customer(name,energy,NULL,NULL);
-			q2->add(*cus);
-		}
-	}
+    }
+    else if(q->count == MAXSIZE && qcho->count == MAXSIZE) ;
+    else if(q->count >= MAXSIZE) {
+        qcho->add(*cus);
+    }
 }
 
 void imp_res::BLUE(int num) {
-	cout << "blue "<< num << endl;
-	if(num >= MAXSIZE) {
-		while(current) {
-			customer *p = current->next;
-			delete current;
-			current = p;
-		}
-		q1->clear();
-		guest = 0;
+    cout << "blue "<< num << endl;
+	if(num >= q->count) {
+		qtime->clear();
+		q->clear();
 	}
-	else {
-		for(int i = 0; i < num; i++) {
-			customer *p = q1->remove();
-			p->next ->prev = p->prev;
-			p->prev->next = p ->next;
-			delete p;
-			guest--;
-		}
-		if(q1->count == 0) current = NULL;
-		else current = q1->front();
-	}
-}
-
-void imp_res::PURPLE() {
-	cout << "purple"<< endl;
-	BLUE(q1->shellSort() %MAXSIZE);
-}
-
-void imp_res::DOMAIN_EXPANSION() {
-	cout << "domain_expansion" << endl;
-	long long sump =0,sumn = 0;
-	if(current->energy > 0) sump += current->energy;
-	else sumn += current->energy;
-	customer *p = q1->front();
-	while(p != q1->rear()) {
-		if(p->energy >0) {
-			sump+= p->energy;
-		}
-		else sumn += p->energy;
-		p = p->next;
-	}
-	Node * ptr = q2->head;
-	while(ptr) {
-		if(ptr->cus->energy >0) {
-			sump+= ptr->cus->energy;
-		}
-		else sumn += ptr->cus->energy;
-		ptr = ptr->next;
-	}
-	if(sump >= abs(sumn)) {
-		while(current->energy <0) {
-			p = current;
-			current = current ->next;
-			p->prev ->next = p ->next;
-			p->next ->prev = p->prev;
-			delete p;
-		}
-		p = current->next;
-		while(p != current) {
-			customer *n = p->next;
-			if(p->energy <0) {
-				p->prev ->next = p ->next;
-				p->next ->prev = p->prev;
-				delete p;
-				p = n;
-			}
-			else p = p->next;
-		}
-		Node * ptr = q1->tail;
-		while(ptr) {
-			Node *n = ptr->pre;
-			if(ptr->cus->energy < 0) {
-				ptr->pre ->next = ptr ->next;
-				if(ptr->next) ptr->next ->pre = ptr->pre;
-				cout << ptr->cus->name << '-' << ptr->cus->energy << endl;
-				delete ptr;
-				ptr = n;
-			}
-			else ptr = ptr->pre;
-		}
-		ptr = q2->tail;
-		while(ptr) {
-			Node *n = ptr->pre;
-			if(ptr->cus->energy < 0) {
-				ptr->pre ->next = ptr ->next;
-				if(ptr->next) ptr->next ->pre = ptr->pre;
-				cout << ptr->cus->name << '-' << ptr->cus->energy << endl;
-				delete ptr;
-				ptr = n;
-			}
-			else ptr = ptr->pre;
+	else {	
+		while(num) {
+			num--;
+			customer * cus = qtime->remove();
+			q->removeCir(cus);
 		}
 	}
-	else {
-		while(current->energy > 0) {
-			p = current;
-			current = current ->next;
-			p->prev ->next = p ->next;
-			p->next ->prev = p->prev;
-			delete p;
-		}
-		p = current->next;
-		while(p != current) {
-			customer *n = p->next;
-			if(p->energy > 0) {
-				p->prev ->next = p ->next;
-				p->next ->prev = p->prev;
-				delete p;
-				p = n;
-			}
-			else p = p->next;
-		}
-		Node * ptr = q1->tail;
-		while(ptr) {
-			Node *n = ptr->pre;
-			if(ptr->cus->energy > 0) {
-				ptr->pre ->next = ptr ->next;
-				if(ptr->next) ptr->next ->pre = ptr->pre;
-				cout << ptr->cus->name << '-' << ptr->cus->energy << endl;
-				delete ptr;
-				ptr = n;
-			}
-			else ptr = ptr->pre;
-		}
-		ptr = q2->tail;
-		while(ptr) {
-			Node *n = ptr->pre;
-			if(ptr->cus->energy > 0) {
-				ptr->pre ->next = ptr ->next;
-				if(ptr->next) ptr->next ->pre = ptr->pre;
-				cout << ptr->cus->name << '-' << ptr->cus->energy << endl;
-				delete ptr;
-				ptr = n;
-			}
-			else ptr = ptr->pre;
-		}
+	while(qcho->count > 0 && q->count < MAXSIZE) {
+		customer * cus = qcho->remove();
+		RED(cus->name,cus->energy);
+		delete cus;
 	}
 }
 
 void imp_res::LIGHT(int num) {
 	cout << "light " << num << endl;
 	if(num > 0) {
-		customer *p = current;
-		while(p->next != current) {
-			p->print();
+		Node * p = q->current;
+		while(p->next != q->current) {
+			p->cus->print();
 			p = p->next;
 		}
-		p->print();
+		p->cus->print();
 	}
-	else if(num < 0) {
-		customer *p = current;
-		while(p->prev != current) {
-			p->print();
-			p = p->prev;
-		}
-		p->print();
-	}
-	else {
-		Node * p = q2->head ;
+	else if(num == 0) {
+		Node * p = qcho->head;
 		while(p) {
 			p->cus->print();
 			p = p->next;
 		}
 	}
+	else {
+		Node * p = q->current;
+		while(p->pre != q->current) {
+			p->cus->print();
+			p = p->pre;
+		}
+		p->cus->print();
+	}
+}
+
+void imp_res::DOMAIN_EXPANSION() {
+	cout << "domain_expansion" << endl;
+	long sump =0, sumn = 0;
+	Node * p = qtime->head;
+	while(p) {
+		if(p->cus->energy > 0) sump += p->cus->energy;
+		else sumn += p->cus->energy;
+	}
+	p = qcho->head;
+	while(p) {
+		if(p->cus->energy > 0) sump += p->cus->energy;
+		else sumn += p->cus->energy;
+	}
+	if(sump >= abs(sumn)) {
+		Node * p = qcho->tail;
+		while(p) {
+			if(p->cus->energy < 0) {
+				if(p-> pre) p->pre->next = p->next;
+				if(p->next) p->next->pre = p->pre;
+				p->cus->print();
+				delete p->cus;
+				delete p;
+			}
+			p = p->pre;
+		}
+		p = qtime->tail;
+		while(p) {
+			if(p->cus->energy < 0) {
+				if(p-> pre) p->pre->next = p->next;
+				if(p->next) p->next->pre = p->pre;
+				p->cus->print();
+				q->removeCir(p->cus);
+				delete p->cus;
+				delete p;
+			}
+			p = p->pre;
+		}
+	}
+	else {
+		Node * p = qcho->tail;
+		while(p) {
+			if(p->cus->energy > 0) {
+				if(p-> pre) p->pre->next = p->next;
+				if(p->next) p->next->pre = p->pre;
+				p->cus->print();
+				delete p->cus;
+				delete p;
+			}
+			p = p->pre;
+		}
+		p = qtime->tail;
+		while(p) {
+			if(p->cus->energy > 0) {
+				if(p-> pre) p->pre->next = p->next;
+				if(p->next) p->next->pre = p->pre;
+				p->cus->print();
+				q->removeCir(p->cus);
+				delete p->cus;
+				delete p;
+			}
+			p = p->pre;
+		}
+	}
+	while(qcho->count > 0 && q->count < MAXSIZE) {
+		customer * cus = qcho->remove();
+		RED(cus->name,cus->energy);
+		delete cus;
+	}
 }
 
 void imp_res::REVERSAL() {
 	cout << "reversal" << endl;
-	customer * i = current;
-	customer * j = current ->next;
-	if(current->energy > 0) {
-		while(i != j || j == i->next ) {
-			if(i == j) break;
-			while(i->energy < 0 && i != j) i = i->prev;
-			while(j->energy < 0 && j != i) j = j->next;
-			if(i == j) break;
-			if(i->energy > 0 && j->energy > 0) {
-				customer * temp = i;
-				i = j;
-				j = temp;
+	if(current ->cus->energy > 0) {
+		Node * i = current, *j = current ->next;
+		while(i!= j && i != j->next) {
+			while(i->cus->energy < 0) i = i->pre;
+			while(i->cus->energy < 0) j = j->next;
+			if(i->cus->energy > 0 && j->cus->energy > 0) {
+				customer * temp = i->cus;
+				i->cus = j->cus;
+				j->cus = temp;
 			}
-			i = i->prev;
+			i = i->pre;
 			j = j->next;
 		}
 	}
 	else {
-		while(i != j || j == i->next ) {
-			if(i == j) break;
-			while(i->energy > 0 && i != j) i = i->prev;
-			while(j->energy > 0 && j != i) j = j->next;
-			if(i == j) break;
-			if(i->energy < 0 && j->energy < 0) {
-				customer * temp = i;
-				i = j;
-				j = temp;
+		Node * i = current, *j = current ->next;
+		while(i!= j && i != j->next) {
+			while(i->cus->energy > 0) i = i->pre;
+			while(i->cus->energy > 0) j = j->next;
+			if(i->cus->energy < 0 && j->cus->energy < 0) {
+				customer * temp = i->cus;
+				i->cus = j->cus;
+				j->cus = temp;
 			}
-			i = i->prev;
+			i = i->pre;
 			j = j->next;
 		}
 	}
 }
 
+void imp_res::PURPLE() {
+	cout << "purple"<< endl;
+	int n = qcho->shellSort(qcho->count);
+	BLUE(n%MAXSIZE);
+}
+
 void imp_res::UNLIMITED_VOID() {
 	cout << "unlimited_void" << endl;
-	customer * p = current->prev;
-	customer * n = current;
-	customer * s =current;
-	int count = 1,save =1;
-	int sum =0, min = 1e9;
-	if(guest >= 4) {
-		for(int i =0; i < guest; i++) {
-			p = p->next;
-			n = p;
-			sum = p->energy;
-			count = 1;
-			for(int j = 0; j < guest; j++) {
-				n = n->next;
-				count++;
-				sum += n->energy;
-				if(sum <= min && count >= save) {
-					s = p;
-					min = sum;
-					save = count;
-				}
-			}
-		}
-		n = s;
-		p= s;
-		min = s->energy;
+	if(q->count >= 4) {
+		long min = 1e9,sum =0;
+		int count = 0,len = 4;
 		string result = "";
-		for(int i = 0; i < save; i++) {
-			if(n->energy < min) {
-				min = n->energy;
-				p = n;
+		Node * p = q->current->pre;
+		Node * n ,*s;
+		for(int i = 0; i < q->count; i++) {
+			p = p->next;
+			n = p->next;
+			sum = p->cus->energy;
+			count =1;
+			for(int j = 0; j < q->count -1 ; j++) {
+				count++;
+				sum += n->cus->energy;
+				if(sum <= min  && count >= len) {
+					s = p;
+					len = count;
+				}
+				n = n->next;
 			}
-			n = n->next;
+		}
+		p = s->next;
+		min = s->cus->energy;
+		for(int i =0; i < len -1; i++) {
+			if(p->cus->energy < min) min = p->cus->energy;
+			p = p->next;
 		}
 		n = s;
-		for(int i =0; i < save; i++) {
-			if(n == p) {
-				for(i; i < save; i++) {
-					result = n->name + '-' + to_string(n->energy) + '\n' + result;
-					n = n->next;
+		for(int i =0; i < len; i++) {
+			if(s == p) {
+				for(i;i < len; i++) {
+					result = result + n->cus->name + '-' + to_string(n->cus->energy) + '\n';
+					n =  n->next;
 				}
-			}
+				break;
+			}	
 			else {
-				result = result + n->name + '-' + to_string(n->energy) + '\n';
+				result = n->cus->name + '-' + to_string(n->cus->energy) + '\n' + result;
+				n = n->next;
 			}
-			n = n->next;
 		}
 		cout << result;
 	}
