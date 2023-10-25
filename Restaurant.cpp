@@ -1,5 +1,4 @@
 #include "main.h"
-#include <fstream>
 
 class Queue {
 public:
@@ -155,12 +154,14 @@ class imp_res : public Queue
 {
 	customer * current;
 	int guest;
+    Queue * cir;
 	Queue * q1;
 	Queue * q2;
 	public:	
 		imp_res(){
 			current = NULL;
 			guest = 0;
+            cir = new Queue();
 			q1 = new Queue() ;
 			q2 = new Queue() ;
 		}
@@ -188,16 +189,38 @@ void imp_res::RED(string name,int energy) {
 	if(energy == 0);
 	else if(guest == 0) {
 		current = new customer (name,energy,NULL,NULL);
+        
 		current->prev = current;
 		current->next = current;
 		guest++;
 		q1->add(*current);
 	}
 	else if(guest >= MAXSIZE/2) {
-		//
-
-
-		q1->add(*current);
+        guest++;
+        customer * p = current;
+        customer * n = current->next;
+        customer * s;
+        int res = -1e9;
+        for(int i =0; i < guest; i++) {
+            if((abs(p->energy) - abs(n->energy)) > res) {
+                res = (abs(p->energy) - abs(n->energy));
+                s = p;
+            }
+            p = p->next;
+            n = p->next;
+        }
+        if((s->energy - s->next->energy) < 0) {
+            customer * cus = new customer(name,energy,s->prev,s);
+            s->prev->next = cus;
+            s ->prev = cus;
+            q1->add(*cus);
+        }
+        else {
+            customer * cus = new customer (name,energy,s,s->next);
+            s->next->prev = cus;
+            s->next =cus;
+            q1->add(*cus);
+        }
 	}
 	else if(guest < MAXSIZE) {
 		if(energy >= current->energy) {
@@ -370,23 +393,23 @@ void imp_res::LIGHT(int num) {
 	if(num > 0) {
 		customer *p = current;
 		while(p->next != current) {
-			cout << p->name << '-' << p->energy << endl;
+			p->print();
 			p = p->next;
 		}
-		cout << p->name << '-' << p->energy << endl;
+		p->print();
 	}
 	else if(num < 0) {
 		customer *p = current;
 		while(p->prev != current) {
-			cout << p->name << '-' << p->energy << endl;
+			p->print();
 			p = p->prev;
 		}
-		cout << p->name << '-' << p->energy << endl;
+		p->print();
 	}
 	else {
-		customer * p = q2->front() ;
+		Node * p = q2->head ;
 		while(p) {
-			cout << p->name << '-' << p->energy << endl;
+			p->cus->print();
 			p = p->next;
 		}
 	}
